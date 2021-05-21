@@ -1,8 +1,11 @@
 buildscript {
     repositories {
         mavenCentral()
-        maven {
-            url 'https://plugins.gradle.org/m2/'
+        repositories {
+            maven {
+                url = "s3://external-build-dependencies"
+                authentication { awsIm(AwsImAuthentication) }
+            }
         }
     }
 
@@ -14,6 +17,7 @@ buildscript {
 apply plugin: 'java'
 apply plugin: 'groovy'
 apply plugin: 'idea'
+apply plugin: 'maven-publish'
 
 jar {
     baseName = 'quartz-mongodb'
@@ -24,8 +28,8 @@ repositories {
     mavenCentral()
 }
 
-sourceCompatibility = 1.7
-targetCompatibility = 1.7
+targetCompatibility = 1.8
+sourceCompatibility = 1.8
 
 configurations {
     provided
@@ -40,6 +44,7 @@ idea {
         scopes.PROVIDED.plus += [configurations.provided]
     }
 }
+
 dependencies {
     compile("org.quartz-scheduler:quartz:2.2.3")
     compile("org.mongodb:mongo-java-driver:3.3.0")
@@ -55,15 +60,29 @@ dependencies {
     testRuntime("org.objenesis:objenesis:2.1")
 }
 
-task wrapper(type: Wrapper) {
-    gradleVersion = '2.13'
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allSource
+    classifier = 'sources'
 }
 
-apply plugin: 'net.researchgate.release'
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId    = 'com.novemberain'
+            artifactId = 'quartz-mongodb'
+            version    = projectVersion
 
-release {
-    scmAdapters = [net.researchgate.release.GitAdapter]
-    git {
-        pushToRemote = 'origin'
+            artifact sourcesJar {
+                classifier "sources"
+            }
+
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url = "s3://evrythng-build-artifacts"
+            authentication { awsIm(AwsImAuthentication) }
+        }
     }
 }
